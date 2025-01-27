@@ -125,8 +125,8 @@ export default function CorrelationAndRegressionVisualizer() {
 
   // Generate data based on correlation and sampleSize
   const scatterData = useMemo(() => {
-    // Let’s keep domain X=0..10, Y=0..10, but ensure the final chart also shows that same domain.
-return generateCorrelatedData(corr, sampleSize, 0, 10);
+    // Keep domain X=0..10, Y=0..10, ensuring the final chart also shows that same domain.
+    return generateCorrelatedData(corr, sampleSize, 0, 10);
   }, [corr, sampleSize]);
 
   // Compute correlation from generated data
@@ -141,9 +141,19 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
     return computeRegressionLine(scatterData);
   }, [scatterData]);
 
-  // Decide which slope/intercept to display
+  // Compute the mean Y (for the horizontal line before fitting)
+  const meanY = useMemo(() => {
+    if (!scatterData.length) return 0;
+    return (
+      scatterData.reduce((sum, d) => sum + d.y, 0) / scatterData.length
+    );
+  }, [scatterData]);
+
+  // Decide which slope/intercept to display:
+  // before user clicks "Fit" => line at meanY (slope = 0),
+  // after user clicks "Fit"  => best-fit line (slope & intercept)
   const displayedSlope = fitLine ? slope : 0;
-  const displayedIntercept = fitLine ? intercept : 0;
+  const displayedIntercept = fitLine ? intercept : meanY;
 
   // We'll create a line from x=0 to x=10 using displayedSlope and displayedIntercept
   const linePoints = [
@@ -151,8 +161,7 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
     { x: 10, y: displayedSlope * 10 + displayedIntercept },
   ];
 
-  // For each data point, create a small line from (x, actualY) to (x, predictedY).
-  // Show these as dashed red lines.
+  // Create dashed lines from each point to the best-fit line
   const residualLines = scatterData.map((d) => {
     const predictedY = slope * d.x + intercept;
     return [
@@ -173,13 +182,17 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
               className="text-center"
             >
               <h1 className="text-2xl font-bold mb-2">Correlation & Regression Visualizer</h1>
-              <p className="text-sm text-gray-600">Explore how correlation influences the best-fit regression line in a scatter plot.</p>
+              <p className="text-sm text-gray-600">
+                Choose a correlation strength (-1 to +1) and sample size. Thre red line starts at the mean for that set of data. After you generate the correlation, you can fit the best-fit line by clicking the blue button below.
+              </p>
             </motion.div>
 
             {/* Controls */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 place-items-center">
               <div className="flex flex-col items-center">
-                <label className="font-medium mb-2">Correlation (r): {corr.toFixed(2)}</label>
+                <label className="font-medium mb-2">
+                  Correlation (r): {corr.toFixed(2)}
+                </label>
                 <input
                   type="range"
                   min="-1"
@@ -243,11 +256,16 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
                     <Label value="X" offset={-5} position="insideBottom" />
                   </XAxis>
                   <YAxis type="number" dataKey="y" domain={[0, 10]}>
-                    <Label value="Y" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
+                    <Label
+                      value="Y"
+                      angle={-90}
+                      position="insideLeft"
+                      style={{ textAnchor: 'middle' }}
+                    />
                   </YAxis>
                   <Tooltip cursor={{ strokeDasharray: '3 3' }} />
                   <Scatter data={scatterData} fill="#8884d8" />
-                  
+
                   {fitLine && showDistances && residualLines.map((line, idx) => (
                     <Scatter
                       key={idx}
@@ -256,7 +274,7 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
                       shape="none"
                     />
                   ))}
-                  
+
                   <Scatter data={linePoints} fill="red" line shape="none" />
                 </ScatterChart>
               </div>
@@ -275,15 +293,14 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
               <p className="text-sm text-gray-700">
                 {fitLine 
                   ? `Slope = ${slope.toFixed(2)}, Intercept = ${intercept.toFixed(2)}`
-                  : 'Line not yet fit!'}
+                  : 'Line not yet fit! (currently showing mean Y)'}
               </p>
               <p className="text-sm text-gray-700">
-                This tool generates a random sample of (X,Y) from a 2D Normal distribution with a target correlation of {corr.toFixed(2)},
-                then rescales it to the range [0, 10]. Because of randomness and sample size, the actual correlation (shown above)
+                The figure above is currently showing a random sample of data with a target correlation of {corr.toFixed(2)}. Because of randomness and sample size, the actual correlation (shown above)
                 may differ slightly from the desired target.
                 <br/><br/>
                 By clicking the <em>Fit the best-fit regression line</em> button, you can see how the line is placed to minimize
-                the total squared vertical distances (residuals) between each point and the line. The <span className="text-red-500">dashed red lines</span>
+                the total squared vertical distances (residuals) between each point and the line. The <span className="text-red-500">dashed red lines </span>
                 show these residuals.
               </p>
             </motion.div>
