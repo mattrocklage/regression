@@ -182,8 +182,9 @@ export default function CorrelationAndRegressionVisualizer() {
               className="text-center"
             >
               <h1 className="text-2xl font-bold mb-2">Correlation & Regression Visualizer</h1>
+  <h2 className="text-md font-bold mb-2">Created by Matt Rocklage</h2>
               <p className="text-sm text-gray-600">
-                Choose a correlation strength (-1 to +1) and sample size. Thre red line starts at the mean for that set of data. After you generate the correlation, you can fit the best-fit line by clicking the blue button below.
+                Choose a correlation strength (-1 to +1) and sample size. The red line starts at the mean for that set of data. After you generate the correlation, you can fit the best-fit line by clicking the blue button below.
               </p>
             </motion.div>
 
