@@ -261,20 +261,16 @@ export default function CorrelationAndRegressionVisualizer() {
                   <Tooltip cursor={{ strokeDasharray: '3 3' }} />
                   <Scatter data={scatterData} fill="#8884d8" />
 
-{fitLine && showDistances && residualLines.map((line, idx) => (
-  <Scatter
-    key={idx}
-    data={line}
-    line={{ strokeDasharray: "4 4", stroke: "red" }}
-    shape={() => null} // ensures no scatter markers
-  />
-))}
+                  {fitLine && showDistances && residualLines.map((line, idx) => (
+                    <Scatter
+                      key={idx}
+                      data={line}
+                      line={{ strokeDasharray: "4 4", stroke: "red" }}
+                      shape="none"
+                    />
+                  ))}
 
-                  <Scatter
-  data={linePoints}
-  line={{ stroke: "red", strokeWidth: 2 }} // specify how you want the line to appear
-  shape={() => null}                      // hide the scatter points
-/>
+                  <Scatter data={linePoints} fill="red" line shape="none" />
                 </ScatterChart>
               </div>
             </motion.div>
