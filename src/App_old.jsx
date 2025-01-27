@@ -47,14 +47,16 @@ function computeCorrelation(xVals, yVals) {
   return numerator / Math.sqrt(denomX * denomY);
 }
 
-// Utility function to compute slope and intercept for simple linear regression
+// Utility function to compute slope, intercept, and meanY
 function computeRegressionLine(data) {
   const n = data.length;
   if (n === 0) {
-    return { slope: 0, intercept: 0 };
+    return { slope: 0, intercept: 0, meanY: 0 };
   }
-  const meanX = data.reduce((acc, d) => acc + d.x, 0) / n;
-  const meanY = data.reduce((acc, d) => acc + d.y, 0) / n;
+  const sumX = data.reduce((acc, d) => acc + d.x, 0);
+  const sumY = data.reduce((acc, d) => acc + d.y, 0);
+  const meanX = sumX / n;
+  const meanY = sumY / n;
 
   let numerator = 0;
   let denominator = 0;
@@ -64,24 +66,19 @@ function computeRegressionLine(data) {
   });
   if (denominator === 0) {
     // All x's are the same, fall back to slope=0
-    return { slope: 0, intercept: meanY };
+    return { slope: 0, intercept: meanY, meanY };
   }
 
   const slope = numerator / denominator;
   const intercept = meanY - slope * meanX;
-  return { slope, intercept };
+  return { slope, intercept, meanY };
 }
 
 // Generate data with a desired correlation using 2D normal distribution approach
-// Then scale to [xMin, xMax] in both x and y dimensions
 function generateCorrelatedData(corr, n, xMin, xMax) {
-  // correlation is between -1 and 1
-  // We'll create 2D normal data (Z1, Z2) with correlation corr
-  // Then we'll scale to [xMin, xMax].
-
   const data = [];
 
-  // Create arrays of raw (xRaw, yRaw) in approx N(0,1) with correlation
+  // Create arrays of raw (xRaw, yRaw) ~ N(0,1) with correlation
   const xRaw = [];
   const yRaw = [];
 
@@ -96,21 +93,18 @@ function generateCorrelatedData(corr, n, xMin, xMax) {
     yRaw.push(yVal);
   }
 
-  // find min & max for xRaw
+  // Scale to [xMin, xMax] for both X and Y
   const minXraw = Math.min(...xRaw);
   const maxXraw = Math.max(...xRaw);
-  const rangeXraw = maxXraw - minXraw || 1; // avoid zero division
+  const rangeXraw = maxXraw - minXraw || 1;
 
-  // find min & max for yRaw
   const minYraw = Math.min(...yRaw);
   const maxYraw = Math.max(...yRaw);
   const rangeYraw = maxYraw - minYraw || 1;
 
-  // scale them to [xMin, xMax] for both X and Y
   for (let i = 0; i < n; i++) {
     const scaledX = xMin + ((xRaw[i] - minXraw) / rangeXraw) * (xMax - xMin);
     const scaledY = xMin + ((yRaw[i] - minYraw) / rangeYraw) * (xMax - xMin);
-
     data.push({ x: scaledX, y: scaledY });
   }
 
@@ -118,15 +112,16 @@ function generateCorrelatedData(corr, n, xMin, xMax) {
 }
 
 export default function CorrelationAndRegressionVisualizer() {
+  // 4) Default sample size is now 200
   const [corr, setCorr] = useState(0);
-  const [sampleSize, setSampleSize] = useState(30);
+  const [sampleSize, setSampleSize] = useState(200);
+
   const [fitLine, setFitLine] = useState(false);
   const [showDistances, setShowDistances] = useState(false);
 
   // Generate data based on correlation and sampleSize
   const scatterData = useMemo(() => {
-    // Let’s keep domain X=0..10, Y=0..10, but ensure the final chart also shows that same domain.
-return generateCorrelatedData(corr, sampleSize, 0, 10);
+    return generateCorrelatedData(corr, sampleSize, 0, 10);
   }, [corr, sampleSize]);
 
   // Compute correlation from generated data
@@ -136,23 +131,22 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
     return computeCorrelation(xVals, yVals);
   }, [scatterData]);
 
-  // Compute slope and intercept for best-fit line
-  const { slope, intercept } = useMemo(() => {
+  // Compute slope, intercept, and meanY for best-fit line
+  const { slope, intercept, meanY } = useMemo(() => {
     return computeRegressionLine(scatterData);
   }, [scatterData]);
 
-  // Decide which slope/intercept to display
+  // 2) Display line at the mean (horizontal) until button is clicked
   const displayedSlope = fitLine ? slope : 0;
-  const displayedIntercept = fitLine ? intercept : 0;
+  const displayedIntercept = fitLine ? intercept : meanY;
 
-  // We'll create a line from x=0 to x=10 using displayedSlope and displayedIntercept
+  // We'll create a line from x=0 to x=10
   const linePoints = [
-    { x: 0, y: displayedIntercept },
+    { x: 0,  y: displayedIntercept },
     { x: 10, y: displayedSlope * 10 + displayedIntercept },
   ];
 
-  // For each data point, create a small line from (x, actualY) to (x, predictedY).
-  // Show these as dashed red lines.
+  // Dashed red lines for distances if line is fit
   const residualLines = scatterData.map((d) => {
     const predictedY = slope * d.x + intercept;
     return [
@@ -162,23 +156,28 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
   });
 
   return (
-    <div className="flex justify-center items-center p-4 w-full h-auto">
-      <Card className="max-w-4xl w-full bg-white shadow-xl rounded-2xl p-4">
-        <CardContent>
+    // 1) Center everything
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
+      <Card className="w-full max-w-4xl bg-white shadow-xl rounded-2xl p-4">
+        <CardContent className="text-center">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="mb-4 text-center"
+            className="mb-4"
           >
             <h1 className="text-2xl font-bold mb-2">Correlation & Regression Visualizer</h1>
-            <p className="text-sm text-gray-600">Explore how correlation influences the best-fit regression line in a scatter plot.</p>
+            <p className="text-sm text-gray-600">
+              Explore how correlation influences the best-fit regression line in a scatter plot.
+            </p>
           </motion.div>
 
           {/* Controls */}
           <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4 justify-center mb-6">
             <div className="flex flex-col">
-              <label className="font-medium mb-1">Correlation (r): {corr.toFixed(2)}</label>
+              <label className="font-medium mb-1">
+                Correlation (r): {corr.toFixed(2)}
+              </label>
               <input
                 type="range"
                 min="-1"
@@ -194,7 +193,9 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
               />
             </div>
             <div className="flex flex-col">
-              <label className="font-medium mb-1">Sample Size: {sampleSize}</label>
+              <label className="font-medium mb-1">
+                Sample Size: {sampleSize}
+              </label>
               <input
                 type="range"
                 min="10"
@@ -211,14 +212,14 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
             </div>
           </div>
 
-          {/* Button to fit line */}
+          {/* 3) Blue button matching the slider color (#8884d8), text white */}
           <div className="flex justify-center items-center space-x-4 mb-4">
             <Button
               onClick={() => {
                 setFitLine(true);
                 setShowDistances(true);
               }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow"
+              className="px-4 py-2 bg-[#8884d8] hover:bg-[#7070d8] text-white rounded-2xl shadow"
             >
               Fit the best-fit regression line
             </Button>
@@ -230,15 +231,11 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
             transition={{ duration: 0.6 }}
             className="bg-gray-100 rounded-xl p-4"
           >
-            <div className="w-full h-96 overflow-auto">
+            <div className="w-full h-96 overflow-auto mx-auto">
               <ScatterChart width={600} height={350}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" dataKey="x" domain={[0, 10]}>
-                  <Label
-                    value="X"
-                    offset={-5}
-                    position="insideBottom"
-                  />
+                  <Label value="X" offset={-5} position="insideBottom" />
                 </XAxis>
                 <YAxis type="number" dataKey="y" domain={[0, 10]}>
                   <Label
@@ -252,7 +249,7 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
                 {/* Original Data Points */}
                 <Scatter data={scatterData} fill="#8884d8" />
 
-                {/* Show dashed red lines for the distances if the line is fit */}
+                {/* Show residual lines if the line is fit */}
                 {fitLine && showDistances && residualLines.map((line, idx) => (
                   <Scatter
                     key={idx}
@@ -262,7 +259,7 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
                   />
                 ))}
 
-                {/* We'll add a scatter to show the best-fit line endpoints with a line connect. */}
+                {/* Best-fit line (or mean line if not fit) */}
                 <Scatter
                   data={linePoints}
                   fill="red"
@@ -273,33 +270,37 @@ return generateCorrelatedData(corr, sampleSize, 0, 10);
             </div>
           </motion.div>
 
-          {/* Now show correlation, slope, intercept below the chart */}
+          {/* Correlation, slope, intercept info */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="mt-4 text-center"
+            className="mt-4"
           >
             <p className="text-sm text-gray-700 mb-2">
               Actual Sample Correlation (r): {actualCorrelation.toFixed(2)}
             </p>
             <p className="text-sm text-gray-700 mb-2">
-              {{
-                false: 'Line not yet fit!',
-                true: `Slope = ${slope.toFixed(2)}, Intercept = ${intercept.toFixed(2)}`
-              }[fitLine]}
+              {
+                !fitLine
+                  ? 'Line not yet fit!'
+                  : `Slope = ${slope.toFixed(2)}, Intercept = ${intercept.toFixed(2)}`
+              }
             </p>
             <p className="text-sm text-gray-700">
-              This tool generates a random sample of (X,Y) from a 2D Normal distribution with a target correlation of {corr.toFixed(2)},
-              then rescales it to the range [0, 10]. Because of randomness and sample size, the actual correlation (shown above)
+              This tool generates a random sample of (X,Y) from a 2D Normal distribution with a
+              target correlation of {corr.toFixed(2)}, then rescales it to the range [0, 10].
+              Because of randomness and sample size, the actual correlation (shown above)
               may differ slightly from the desired target.
               <br/><br/>
-              By clicking the <em>Fit the best-fit regression line</em> button, you can see how the line is placed to minimize
-              the total squared vertical distances (residuals) between each point and the line. The <span className="text-red-500">dashed red lines</span>
+              By clicking the <em>Fit the best-fit regression line</em> button, you can see how
+              the line is placed to minimize the total squared vertical distances (residuals)
+              between each point and the line. The <span className="text-red-500">dashed red lines</span>
               show these residuals.
             </p>
           </motion.div>
         </CardContent>
       </Card>
     </div>
-  );}
+  );
+}
