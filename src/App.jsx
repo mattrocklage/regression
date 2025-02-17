@@ -249,11 +249,11 @@ export default function CorrelationAndRegressionVisualizer() {
                 <ScatterChart width={600} height={350}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" dataKey="x" domain={[0, 10]}>
-                    <Label value="X" offset={-5} position="insideBottom" />
+                    <Label value="Visits" offset={-5} position="insideBottom" />
                   </XAxis>
                   <YAxis type="number" dataKey="y" domain={[0, 10]}>
                     <Label
-                      value="Y"
+                      value="Revenue"
                       angle={-90}
                       position="insideLeft"
                       style={{ textAnchor: 'middle' }}
